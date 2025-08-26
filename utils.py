@@ -38,11 +38,9 @@ from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from rank_bm25 import BM25Okapi
 
 def _normalize(text: str) -> str:
-    """取り込み/問い合わせで同一の正規化（最低限版）"""
     import re
-    t = text.strip()
+    t = text.strip().replace("　", " ")
     t = re.sub(r"\s+", " ", t)
-    t = t.replace("　", " ")  # 全角空白
     return t
 
 def _char_ngrams(s: str, n: int = 2) -> List[str]:
@@ -51,19 +49,16 @@ def _char_ngrams(s: str, n: int = 2) -> List[str]:
         return [s] if s else []
     return [s[i:i+n] for i in range(len(s) - n + 1)]
 
-class SimpleBM25Retriever:
-    """日本語向け：文字2gramでBM25。依存は rank_bm25 のみ。"""
-    def __init__(self, docs: List[Document], k: int = 8, ngram: int = 2):
+class SimpleBM25:
+    def __init__(self, docs: List[Document], ngram: int = 2):
         self.docs = docs
-        self.k = k
         self.ngram = ngram
-        corpus_tokens = [_char_ngrams(d.page_content, n=self.ngram) for d in docs]
-        self.bm25 = BM25Okapi(corpus_tokens)
-
-    def get_relevant_documents(self, query: str) -> List[Document]:
+        corpus = [_char_ngrams(d.page_content, n=ngram) for d in docs]
+        self.bm25 = BM25Okapi(corpus)
+    def topk(self, query: str, k: int) -> List[Document]:
         tokens = _char_ngrams(query, n=self.ngram)
         scores = self.bm25.get_scores(tokens)
-        idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[: self.k]
+        idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
         out = []
         for i in idxs:
             d = self.docs[i].copy()
@@ -73,55 +68,64 @@ class SimpleBM25Retriever:
             out.append(d)
         return out
 
-def _doc_identity_key(d: Document):
+def _doc_key(d: Document):
     m = d.metadata or {}
     return (m.get("source"), m.get("page"), m.get("id"), hash(d.page_content))
 
-def rrf_fuse(result_lists: List[List[Document]], k: int = 8, k_rrf: int = 60) -> List[Document]:
-    """RRF融合。list of ranked docs を合算して上位kを返す。"""
+def rrf_fuse(ranked_lists: List[List[Document]], k: int = 8, k_rrf: int = 60) -> List[Document]:
     from collections import defaultdict
     score = defaultdict(float)
     last = {}
-    for results in result_lists:
+    for results in ranked_lists:
         for rank, doc in enumerate(results):
-            key = _doc_identity_key(doc)
+            key = _doc_key(doc)
             last[key] = doc
             score[key] += 1.0 / (k_rrf + rank + 1)
     fused = sorted(score.items(), key=lambda kv: kv[1], reverse=True)[:k]
     return [last[key] for key, _ in fused]
 
 class HybridRetriever(BaseRetriever):
-    """BM25 + ベクター(MMR) をRRFで融合。LangChain互換の get_relevant_documents だけ実装。"""
-    def __init__(self, bm25_ret: SimpleBM25Retriever, vec_ret, k: int = 8, k_rrf: int = 60):
-        self.bm25_ret = bm25_ret
-        self.vec_ret = vec_ret
+    """BM25 + Vector(MMR) をRRFで融合。LangChain準拠。"""
+    def __init__(self, bm25: SimpleBM25, vec_retriever, k: int = 8, k_rrf: int = 60):
+        super().__init__()
+        self.bm25 = bm25
+        self.vec = vec_retriever
         self.k = k
         self.k_rrf = k_rrf
 
     def _is_short(self, q: str) -> bool:
-        # ざっくり：短い・名詞だけの一語などをブースト対象に
         return len(q.strip()) <= 8
 
-    def get_relevant_documents(self, query: str) -> List[Document]:
-        # 短問のときはBM25側をやや強めに
-        if self._is_short(query):
-            orig_k = self.bm25_ret.k
-            self.bm25_ret.k = max(orig_k, self.k + 2)
-            bm25_docs = self.bm25_ret.get_relevant_documents(query)
-            self.bm25_ret.k = orig_k  # 戻す
-            vec_docs = self.vec_ret.get_relevant_documents(query)
-        else:
-            bm25_docs = self.bm25_ret.get_relevant_documents(query)
-            vec_docs = self.vec_ret.get_relevant_documents(query)
-
+    def _get_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        # BM25 / Vector それぞれ取得
+        k_bm25 = self.k + 2 if self._is_short(query) else self.k
+        bm25_docs = self.bm25.topk(query, k=k_bm25)
+        vec_docs  = self.vec.get_relevant_documents(query)
         fused = rrf_fuse([bm25_docs, vec_docs], k=self.k, k_rrf=self.k_rrf)
         return fused if fused else (bm25_docs or vec_docs)
 
+    async def _aget_relevant_documents(
+        self,
+        query: str,
+        *,
+        run_manager: CallbackManagerForRetrieverRun
+    ) -> List[Document]:
+        # シンプルに同期実装を使い回し
+        return self._get_relevant_documents(query, run_manager=run_manager)
+
 def build_hybrid_retriever(vectorstore, docs: List[Document], k: int = 8) -> BaseRetriever:
-    """既存Chromaから retriever を作り、BM25 と融合して返す。"""
-    vec_ret = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": 80, "lambda_mult": 0.7})
-    bm25_ret = SimpleBM25Retriever(docs, k=k, ngram=3)
-    return HybridRetriever(bm25_ret, vec_ret, k=k, k_rrf=60)
+    vec_ret = vectorstore.as_retriever(
+        search_type="mmr",
+        search_kwargs={"k": k, "fetch_k": 60, "lambda_mult": 0.7}
+    )
+    bm25 = SimpleBM25(docs, ngram=2)
+    return HybridRetriever(bm25=bm25, vec_retriever=vec_ret, k=k, k_rrf=60)
+
 
 # ===== 追記ここまで =====
 
