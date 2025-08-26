@@ -31,8 +31,10 @@ os.environ["OPENAI_API_KEY"] = key  # 念のため環境変数にも反映
 # ハイブリッド検索（BM25 + Chroma）
 ############################################################
 # ===== ここから追記：ハイブリッド検索（BM25 + Chroma） =====
-from typing import List, Iterable
+from typing import List
 from langchain.schema import Document
+from langchain.retrievers import BaseRetriever
+from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from rank_bm25 import BM25Okapi
 
 def _normalize(text: str) -> str:
@@ -88,7 +90,7 @@ def rrf_fuse(result_lists: List[List[Document]], k: int = 8, k_rrf: int = 60) ->
     fused = sorted(score.items(), key=lambda kv: kv[1], reverse=True)[:k]
     return [last[key] for key, _ in fused]
 
-class HybridRetriever:
+class HybridRetriever(BaseRetriever):
     """BM25 + ベクター(MMR) をRRFで融合。LangChain互換の get_relevant_documents だけ実装。"""
     def __init__(self, bm25_ret: SimpleBM25Retriever, vec_ret, k: int = 8, k_rrf: int = 60):
         self.bm25_ret = bm25_ret
@@ -115,7 +117,7 @@ class HybridRetriever:
         fused = rrf_fuse([bm25_docs, vec_docs], k=self.k, k_rrf=self.k_rrf)
         return fused if fused else (bm25_docs or vec_docs)
 
-def build_hybrid_retriever(vectorstore, docs: List[Document], k: int = 8):
+def build_hybrid_retriever(vectorstore, docs: List[Document], k: int = 8) -> BaseRetriever:
     """既存Chromaから retriever を作り、BM25 と融合して返す。"""
     vec_ret = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": 80, "lambda_mult": 0.7})
     bm25_ret = SimpleBM25Retriever(docs, k=k, ngram=3)
