@@ -204,32 +204,8 @@ def get_llm_response(chat_message):
     # 「RAG x 会話履歴の記憶機能」を実現するためのChainを作成
     chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
-
-    # 🔽 ここから “invoke → stream” へ最小改修
-    inputs = {"input": chat_message, "chat_history": st.session_state.chat_history}
-
-    # 1) 先に文脈（ドキュメント）だけ取得
-    context_docs = history_aware_retriever.invoke(inputs)
-
-    # 2) ストリームで回答を書き出し
-    placeholder = st.empty()
-    answer_buf = ""
-
-    # question_answer_chain は Runnable なので .stream が使える
-    for chunk in question_answer_chain.stream({**inputs, "context": context_docs}):
-        # LangChainのstreamはdictチャンクを返す。answerキーだけ拾って更新
-        if isinstance(chunk, dict) and "answer" in chunk:
-            answer_buf += chunk["answer"]
-            # 入力中カーソルっぽく ▌ を付けると雰囲気が出る
-            placeholder.markdown(answer_buf + "▌")
-
-    # 3) 最終描画（カーソルを消す）
-    placeholder.markdown(answer_buf)
-
-    # 4) 互換の戻り値を組み立て（従来の llm_response っぽく）
-    llm_response = {"answer": answer_buf, "context": context_docs}
-
-
+    # LLMへのリクエストとレスポンス取得
+    llm_response = chain.invoke({"input": chat_message, "chat_history": st.session_state.chat_history})
     # LLMレスポンスを会話履歴に追加
     st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
 
