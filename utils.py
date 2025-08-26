@@ -33,8 +33,20 @@ os.environ["OPENAI_API_KEY"] = key  # 念のため環境変数にも反映
 # ===== ここから追記：ハイブリッド検索（BM25 + Chroma） =====
 from typing import List
 from langchain.schema import Document
-from langchain.retrievers import BaseRetriever
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
+# BaseRetriever
+try:
+    from langchain_core.retrievers import BaseRetriever  # LC >= 0.1
+except ImportError:
+    try:
+        from langchain.retrievers import BaseRetriever   # 一部の 0.1系
+    except ImportError:
+        from langchain.schema import BaseRetriever       # 旧系
+
+# CallbackManagerForRetrieverRun
+try:
+    from langchain_core.callbacks import CallbackManagerForRetrieverRun
+except ImportError:
+    from langchain.callbacks.manager import CallbackManagerForRetrieverRun
 from rank_bm25 import BM25Okapi
 
 def _normalize(text: str) -> str:
