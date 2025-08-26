@@ -117,8 +117,8 @@ class HybridRetriever:
 
 def build_hybrid_retriever(vectorstore, docs: List[Document], k: int = 8):
     """既存Chromaから retriever を作り、BM25 と融合して返す。"""
-    vec_ret = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": 40})
-    bm25_ret = SimpleBM25Retriever(docs, k=k, ngram=2)
+    vec_ret = vectorstore.as_retriever(search_type="mmr", search_kwargs={"k": k, "fetch_k": 80, "lambda_mult": 0.7})
+    bm25_ret = SimpleBM25Retriever(docs, k=k, ngram=3)
     return HybridRetriever(bm25_ret, vec_ret, k=k, k_rrf=60)
 # ===== 追記ここまで =====
 
