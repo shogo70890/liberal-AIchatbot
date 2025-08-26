@@ -137,6 +137,7 @@ def initialize_retriever():
     db = Chroma.from_documents(splitted_docs, embedding=embeddings)
 
     # ベクターストアを検索するRetrieverの作成
+    # ハイブリッド検索仕様に変更済み
     from utils import build_hybrid_retriever
     st.session_state.retriever = build_hybrid_retriever(
     vectorstore=db,
