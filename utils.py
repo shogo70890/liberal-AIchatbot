@@ -1,3 +1,4 @@
+from langchain.callbacks.base import BaseCallbackHandler
 import logging
 """
 このファイルは、画面表示以外の様々な関数定義のファイルです。
@@ -72,8 +73,19 @@ def get_llm_response(chat_message):
     Returns:
         LLMからの回答
     """
-    # LLMのオブジェクトを用意
-    llm = ChatOpenAI(model=ct.MODEL, temperature=ct.TEMPERATURE, streaming=True)
+    # ストリーム表示用のプレースホルダー
+    response_box = st.empty()
+    streamed_answer = ""
+
+    # ストリーム受信時のコールバックハンドラ
+    class StreamHandler(BaseCallbackHandler):
+        def on_llm_new_token(self, token: str, **kwargs):
+            nonlocal streamed_answer
+            streamed_answer += token
+            response_box.markdown(streamed_answer + "▌")
+
+    # LLMのオブジェクトを用意（ストリーミング＋コールバック）
+    llm = ChatOpenAI(model=ct.MODEL, temperature=ct.TEMPERATURE, streaming=True, callbacks=[StreamHandler()])
 
     # 会話履歴なしでもLLMに理解してもらえる、独立した入力テキストを取得するためのプロンプトテンプレートを作成
     question_generator_template = ct.SYSTEM_PROMPT_CREATE_INDEPENDENT_TEXT
@@ -103,12 +115,16 @@ def get_llm_response(chat_message):
 
     # LLMから回答を取得する用のChainを作成
     question_answer_chain = create_stuff_documents_chain(llm, question_answer_prompt)
+    
     # 「RAG x 会話履歴の記憶機能」を実現するためのChainを作成
     chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
 
     # LLMへのリクエストとレスポンス取得
     llm_response = chain.invoke({"input": chat_message, "chat_history": st.session_state.chat_history})
+
+    # ストリーム表示の最後にカーソルを消す
+    response_box.markdown(streamed_answer)
+
     # LLMレスポンスを会話履歴に追加
     st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
-
     return llm_response
