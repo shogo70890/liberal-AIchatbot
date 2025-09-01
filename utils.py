@@ -73,7 +73,7 @@ def get_llm_response(chat_message):
         LLMからの回答
     """
     # LLMのオブジェクトを用意
-    llm = ChatOpenAI(model=ct.MODEL, temperature=ct.TEMPERATURE)
+    llm = ChatOpenAI(model=ct.MODEL, temperature=ct.TEMPERATURE, streaming=True)
 
     # 会話履歴なしでもLLMに理解してもらえる、独立した入力テキストを取得するためのプロンプトテンプレートを作成
     question_generator_template = ct.SYSTEM_PROMPT_CREATE_INDEPENDENT_TEXT
