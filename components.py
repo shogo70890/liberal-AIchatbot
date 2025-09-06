@@ -75,8 +75,10 @@ def display_conversation_log():
 def display_contact_llm_response(llm_response, show_answer: bool = True):
     """
     「社内問い合わせ」モードにおけるLLMレスポンスを表示
-    ...
     """
+    # 本文の描画はフラグで制御（ストリーミング時は False を渡す）
+    if show_answer:
+        st.markdown(llm_response["answer"])
 
 
 def display_contact_llm_response(llm_response):
