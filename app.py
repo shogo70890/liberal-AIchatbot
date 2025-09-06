@@ -127,30 +127,18 @@ if chat_message:
     # 7-3. LLMからの回答表示
     # ==========================================
     with st.chat_message("assistant"):
-        if getattr(ct, "ENABLE_STREAMING", False):
-            # ← ここが追加分：まず本文をストリーミング描画
-            answer_box = st.empty()
-            with st.spinner(ct.SPINNER_TEXT):
-                llm_response = utils.stream_llm_response(chat_message, answer_box)
-            # 本文はもう描画済みなので「情報源」だけ表示
-            content = cn.display_contact_llm_response(llm_response, show_answer=False)
+        try:
+            # 入力に対しての回答と、参照した文書のありかを表示
+            content = cn.display_contact_llm_response(llm_response)
+            # AIメッセージのログ出力
             logger.info({"message": content})
-        else:
-            # ← 従来パスはそのまま（既存のロジックを温存）
-            with st.spinner(ct.SPINNER_TEXT):
-                try:
-                    llm_response = utils.get_llm_response(chat_message)
-                except Exception as e:
-                    logger.error(f"{ct.GET_LLM_RESPONSE_ERROR_MESSAGE}\n{e}")
-                    st.error(utils.build_error_message(ct.GET_LLM_RESPONSE_ERROR_MESSAGE), icon=ct.ERROR_ICON)
-                    st.stop()
-            try:
-                content = cn.display_contact_llm_response(llm_response)
-                logger.info({"message": content})
-            except Exception as e:
-                logger.error(f"{ct.DISP_ANSWER_ERROR_MESSAGE}\n{e}")
-                st.error(utils.build_error_message(ct.DISP_ANSWER_ERROR_MESSAGE), icon=ct.ERROR_ICON)
-                st.stop()
+        except Exception as e:
+            # エラーログの出力
+            logger.error(f"{ct.DISP_ANSWER_ERROR_MESSAGE}\n{e}")
+            # エラーメッセージの画面表示
+            st.error(utils.build_error_message(ct.DISP_ANSWER_ERROR_MESSAGE), icon=ct.ERROR_ICON)
+            # 後続の処理を中断
+            st.stop()
 
     # ==========================================
     # 7-4. 会話ログへの追加

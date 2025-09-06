@@ -15,7 +15,6 @@ from langchain_openai import ChatOpenAI
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import constants as ct
-from langchain.callbacks.base import BaseCallbackHandler
 
 ############################################################
 # 設定関連
@@ -110,65 +109,6 @@ def get_llm_response(chat_message):
     # LLMへのリクエストとレスポンス取得
     llm_response = chain.invoke({"input": chat_message, "chat_history": st.session_state.chat_history})
     # LLMレスポンスを会話履歴に追加
-    st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
-
-    return llm_response
-
-class _StreamHandler(BaseCallbackHandler):
-    """LLMトークンを受け取るたびにStreamlitプレースホルダを書き換える"""
-    def __init__(self, container):
-        self.container = container
-        self.text = ""
-
-    def on_llm_new_token(self, token, **kwargs):
-        self.text += token
-        # Markdownで逐次描画（箇条書き・太字などが崩れにくい）
-        self.container.markdown(self.text)
-
-
-def stream_llm_response(chat_message, container):
-    """
-    ストリーミングでLLMからの回答を取得しつつ、その場で表示を更新
-    - 返り値は get_llm_response と同じ dict（answer/context）を返す
-    """
-    # LLM（ストリーム有効・コールバック設定）
-    llm = ChatOpenAI(
-        model=ct.MODEL,
-        temperature=ct.TEMPERATURE,
-        streaming=True,
-        callbacks=[_StreamHandler(container)]
-    )
-
-    # 以下は get_llm_response と同じ構成（プロンプト／チェーンを揃える）
-    question_generator_template = ct.SYSTEM_PROMPT_CREATE_INDEPENDENT_TEXT
-    question_generator_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", question_generator_template),
-            MessagesPlaceholder("chat_history"),
-            ("human", "{input}")
-        ]
-    )
-
-    question_answer_template = ct.SYSTEM_PROMPT_INQUIRY
-    question_answer_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", question_answer_template),
-            MessagesPlaceholder("chat_history"),
-            ("human", "{input}")
-        ]
-    )
-
-    history_aware_retriever = create_history_aware_retriever(
-        llm, st.session_state.retriever, question_generator_prompt
-    )
-    question_answer_chain = create_stuff_documents_chain(llm, question_answer_prompt)
-    chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
-
-    # ここで invoke 中にトークンが生成されるたび on_llm_new_token が呼ばれ、container を更新
-    llm_response = chain.invoke({"input": chat_message, "chat_history": st.session_state.chat_history})
-
-    # 会話履歴に追加（従来と同じ）
-    from langchain.schema import HumanMessage
     st.session_state.chat_history.extend([HumanMessage(content=chat_message), llm_response["answer"]])
 
     return llm_response

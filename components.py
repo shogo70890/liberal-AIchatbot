@@ -71,17 +71,10 @@ def display_conversation_log():
                             st.info(f"{file_info['source']}", icon=icon)
 
 
-# 既存の関数定義を書き換え（引数に show_answer: bool = True を追加）
-def display_contact_llm_response(llm_response, show_answer: bool = True):
-    """
-    「社内問い合わせ」モードにおけるLLMレスポンスを表示
-    """
-    # 本文の描画はフラグで制御（ストリーミング時は False を渡す）
-    if show_answer:
-        st.markdown(llm_response["answer"])
 
 
-def display_contact_llm_response(llm_response, show_answer: bool = True):
+
+def display_contact_llm_response(llm_response):
     """
     「社内問い合わせ」モードにおけるLLMレスポンスを表示
 
@@ -91,10 +84,8 @@ def display_contact_llm_response(llm_response, show_answer: bool = True):
     Returns:
         LLMからの回答を画面表示用に整形した辞書データ
     """
-    # 本文の描画はフラグで制御（ストリーミング時は False を渡す）
-    if show_answer:
-        st.markdown(llm_response["answer"])
-
+    # LLMからの回答を表示
+    st.markdown(llm_response["answer"])
 
     # ユーザーの質問・要望に適切な回答を行うための情報が、社内文書のデータベースに存在しなかった場合
     if llm_response["answer"] != ct.INQUIRY_NO_MATCH_ANSWER:
