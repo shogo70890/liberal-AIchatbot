@@ -35,7 +35,7 @@ def display_initial_ai_message():
     # サイドバーに社内問い合わせの機能説明のみ表示
     with st.sidebar:
         st.info("質問・要望に対して、社内文書の情報をもとに回答を得られます。")
-        st.code("【入力例】\n料金体系について教えて", wrap_lines=True, language=None)
+        st.code("【入力例】\n水素水ボトルはどんな条件で配布されますか？", wrap_lines=True, language=None)
 
 
 def display_conversation_log():
@@ -71,7 +71,12 @@ def display_conversation_log():
                             st.info(f"{file_info['source']}", icon=icon)
 
 
-
+# 既存の関数定義を書き換え（引数に show_answer: bool = True を追加）
+def display_contact_llm_response(llm_response, show_answer: bool = True):
+    """
+    「社内問い合わせ」モードにおけるLLMレスポンスを表示
+    ...
+    """
 
 
 def display_contact_llm_response(llm_response):
