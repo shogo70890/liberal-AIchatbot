@@ -127,7 +127,7 @@ if chat_message:
     # 7-3. LLMからの回答表示
     # ==========================================
     with st.chat_message("assistant"):
-        if ct.ENABLE_STREAMING:
+        if getattr(ct, "ENABLE_STREAMING", False):
             # ← ここが追加分：まず本文をストリーミング描画
             answer_box = st.empty()
             with st.spinner(ct.SPINNER_TEXT):
