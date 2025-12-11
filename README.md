@@ -8,13 +8,13 @@ LangChain と OpenAI、ChromaDB を使って、社内ドキュメントを参照
 ## 機能
 
 - **社内ドキュメント検索（RAG）**  
-  質問内容に応じて、ChromaDB から関連情報を取り出して回答します。
+質問内容に応じて、ChromaDB から関連情報を取り出して回答します。
 
 - **会話の文脈保持**  
-  過去のやり取りを踏まえて応答するようにしています。
+過去のやり取りを踏まえて応答するようにしています。
 
 - **簡単なテンプレート生成**  
-  定型文をすぐに出せるようテンプレをいくつか内蔵しています。
+定型文をすぐに出せるようテンプレをいくつか内蔵しています。
 
 ---
 
@@ -41,8 +41,11 @@ LangChain と OpenAI、ChromaDB を使って、社内ドキュメントを参照
 ## 実行方法 
 
 ```bash
+
 pip install -r requirements.txt
 streamlit run app.py
+
+```
 
 ---
 
@@ -64,7 +67,7 @@ Google Drive など外部ストレージとの連携
 
 ---
 
-作者
+## 作者
 
 Shogo Ito
 GitHub: https://github.com/shogo70890
