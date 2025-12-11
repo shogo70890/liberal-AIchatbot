@@ -104,19 +104,19 @@ def display_contact_llm_response(llm_response):
         for document in llm_response["context"]:
             file_path = document.metadata["source"]
             if file_path in file_path_list:
-                continue
+                continue # 既に表示済みのファイルパスの場合はスキップ
             if "page" in document.metadata:
                 page_number = document.metadata["page"]
                 file_info = {"source": file_path, "page_number": page_number}
             else:
                 file_info = {"source": file_path}
-            icon = utils.get_source_icon(file_path)
+            icon = utils.get_source_icon(file_path) # 参照元アイコンの取得
             if "page_number" in file_info:
-                st.info(f"{file_info['source']} (ページNo.{file_info['page_number'] + 1})", icon=icon)
+                st.info(f"{file_info['source']} (ページNo.{file_info['page_number'] + 1})", icon=icon) # ページ番号も含めて表示
             else:
-                st.info(f"{file_info['source']}", icon=icon)
-            file_path_list.append(file_path)
-            file_info_list.append(file_info)
+                st.info(f"{file_info['source']}", icon=icon) # ファイルパスのみ表示
+            file_path_list.append(file_path) # 重複防止のため、表示済みファイルパスをリストに追加
+            file_info_list.append(file_info) # 表示用のファイル情報リストに追加
 
     # 表示用の会話ログに格納するためのデータを用意
     # 社内問い合わせ専用
