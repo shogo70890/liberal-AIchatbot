@@ -42,12 +42,17 @@
 ---
 
 ## ファイル構成
-├── app.py # Streamlit アプリ本体
-├── initialize.py # VectorStore や retriever の初期化
-├── components.py # UI 周り
-├── utils.py # LLM 呼び出し処理
-├── constants.py # プロンプト/定数
-└── requirements.txt
+
+```bash
+project/
+├── app.py              # Streamlit アプリ本体
+├── components.py       # UIコンポーネント
+├── initialize.py       # LLM/RAG 初期設定
+├── constants.py        # 定数や設定値の管理
+├── utils.py            # 共通処理
+├── requirements.txt    # パッケージ一覧
+└── README.md           # このドキュメント
+```
 
 ---
 
