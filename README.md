@@ -31,7 +31,7 @@
 
 ---
 
-## 技術スタック
+## 技術構成
 - Python 3.10  
 - Streamlit  
 - LangChain  
@@ -41,7 +41,7 @@
 
 ---
 
-## ファイル構成（ざっくり）
+## ファイル構成
 ├── app.py # Streamlit アプリ本体
 ├── initialize.py # VectorStore や retriever の初期化
 ├── components.py # UI 周り
